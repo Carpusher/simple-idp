@@ -1,0 +1,22 @@
+{
+  "name": "simple-idp",
+  "version": "1.0.0",
+  "description": "A simple identity provider powered by AWS Serverless technology.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carpusher/simple-idp.git"
+  },
+  "author": "carpusher",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/carpusher/simple-idp/issues"
+  },
+  "homepage": "https://github.com/carpusher/simple-idp#readme",
+  "dependencies": {
+    "serverless": "^3.30.1"
+  }
+}

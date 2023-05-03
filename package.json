@@ -4,7 +4,8 @@
   "description": "A simple identity provider powered by AWS Serverless technology.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "package:dev": "sls package --stage dev",
+    "deploy:dev": "sls deploy --stage dev"
   },
   "repository": {
     "type": "git",

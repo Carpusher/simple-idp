@@ -1,0 +1,54 @@
+service: simple-idp
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+
+resources:
+  Resources:
+    UserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        Schema:
+          - Name: email
+            Required: true
+            Mutable: false
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+            RequireUppercase: true
+        UsernameAttributes: ['email']
+        AutoVerifiedAttributes: ['email']
+        VerificationMessageTemplate:
+          DefaultEmailOption: CONFIRM_WITH_LINK
+        AccountRecoverySetting:
+          RecoveryMechanisms:
+            - Name: verified_email
+              Priority: 1
+    UserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        UserPoolId: !Ref UserPool
+        Domain: simple-idp
+    UserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        UserPoolId: !Ref UserPool
+        GenerateSecret: false
+        CallbackURLs:
+          - http://localhost
+        DefaultRedirectURI: http://localhost
+        PreventUserExistenceErrors: ENABLED
+        AllowedOAuthFlows:
+          - code
+        AllowedOAuthScopes:
+          - email
+          - phone
+          - openid
+        SupportedIdentityProviders:
+          - COGNITO
+          # - Google
+          # - Facebook

@@ -63,6 +63,19 @@ resources:
               # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-aliastarget-1.html#cfn-route53-aliastarget-hostedzoneid
               # cSpell: disable-next-line
               HostedZoneId: Z2FDTNDATAQYW2
+    FacebookIdentityProvider:
+      Type: AWS::Cognito::UserPoolIdentityProvider
+      Properties:
+        UserPoolId: !Ref UserPool
+        ProviderName: Facebook
+        ProviderType: Facebook
+        ProviderDetails:
+          client_id: ${ssm:simple-idp.facebook.clientID}
+          client_secret: ${ssm:simple-idp.facebook.clientSecret}
+          authorize_scopes: public_profile,email
+          # api_version: 2.12
+        AttributeMapping:
+          email: email
     UserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -81,4 +94,4 @@ resources:
         SupportedIdentityProviders:
           - COGNITO
           # - Google
-          # - Facebook
+          - Facebook

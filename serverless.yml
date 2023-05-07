@@ -76,6 +76,18 @@ resources:
           # api_version: 2.12
         AttributeMapping:
           email: email
+    GoogleIdentityProvider:
+      Type: AWS::Cognito::UserPoolIdentityProvider
+      Properties:
+        UserPoolId: !Ref UserPool
+        ProviderName: Google
+        ProviderType: Google
+        ProviderDetails:
+          client_id: ${ssm:simple-idp.google.clientID}
+          client_secret: ${ssm:simple-idp.google.clientSecret}
+          authorize_scopes: profile email openid
+        AttributeMapping:
+          email: email
     UserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -93,5 +105,5 @@ resources:
           - openid
         SupportedIdentityProviders:
           - COGNITO
-          # - Google
+          - Google
           - Facebook

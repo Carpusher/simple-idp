@@ -4,8 +4,23 @@ provider:
   name: aws
   runtime: nodejs18.x
 
+custom:
+  domainName: simple-idp.click # By Route53 Registrar
+  # cSpell: disable-next-line
+  rootDomainHostedZoneID: Z05506703IRO74FTLWKH9 # Created by Route53 Registrar
+  loginRedirectURI: http://localhost
+
 resources:
   Resources:
+    WildDomainCertificate:
+      Type: AWS::CertificateManager::Certificate
+      Properties:
+        DomainName: '*.${self:custom.domainName}'
+        ValidationMethod: DNS
+        DomainValidationOptions:
+          - DomainName: ${self:custom.domainName}
+            HostedZoneId: ${self:custom.rootDomainHostedZoneID}
+
     UserPool:
       Type: AWS::Cognito::UserPool
       Properties:
@@ -32,15 +47,30 @@ resources:
       Type: AWS::Cognito::UserPoolDomain
       Properties:
         UserPoolId: !Ref UserPool
-        Domain: simple-idp
+        Domain: auth.${self:custom.domainName}
+        CustomDomainConfig:
+          CertificateArn: !Ref WildDomainCertificate
+    UserPoolCustomDomainRecordSetGroup:
+      Type: AWS::Route53::RecordSetGroup
+      Properties:
+        HostedZoneId: ${self:custom.rootDomainHostedZoneID}
+        RecordSets:
+          - Name: auth.${self:custom.domainName}
+            Type: A
+            AliasTarget:
+              DNSName: !GetAtt UserPoolDomain.CloudFrontDistribution
+              # Fixed value to target CloudFront Distribution
+              # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-aliastarget-1.html#cfn-route53-aliastarget-hostedzoneid
+              # cSpell: disable-next-line
+              HostedZoneId: Z2FDTNDATAQYW2
     UserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
         UserPoolId: !Ref UserPool
         GenerateSecret: false
         CallbackURLs:
-          - http://localhost
-        DefaultRedirectURI: http://localhost
+          - ${self:custom.loginRedirectURI}
+        DefaultRedirectURI: ${self:custom.loginRedirectURI}
         PreventUserExistenceErrors: ENABLED
         AllowedOAuthFlows:
           - code

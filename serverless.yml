@@ -1,5 +1,9 @@
 service: simple-idp
 
+plugins:
+  - serverless-s3-deploy
+  - serverless-s3-remover
+
 provider:
   name: aws
   runtime: nodejs18.x
@@ -8,10 +12,51 @@ custom:
   domainName: simple-idp.click # By Route53 Registrar
   # cSpell: disable-next-line
   rootDomainHostedZoneID: Z05506703IRO74FTLWKH9 # Created by Route53 Registrar
-  loginRedirectURI: http://localhost
+  loginRedirectURI: https://${self:custom.domainName}
+  assets:
+    auto: true
+    targets:
+      - bucket:
+          Ref: WebAppBucket
+        empty: true
+        files:
+          - source: ./src/frontend/build/
+            globs: '**/*'
+  remover:
+    buckets:
+      - Ref: WebAppBucket
 
 resources:
   Resources:
+    WebAppBucket:
+      Type: AWS::S3::Bucket
+    S3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref WebAppBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Action:
+                - s3:GetObject
+              Effect: Allow
+              Resource: !Join ['/', [!GetAtt WebAppBucket.Arn, '*']]
+              Principal:
+                CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+    CloudFrontOriginAccessIdentity:
+        Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+        Properties:
+          CloudFrontOriginAccessIdentityConfig:
+            Comment: CloudFront OAI for ${self:custom.domainName}
+
+    DomainCertificate:
+      Type: AWS::CertificateManager::Certificate
+      Properties:
+        DomainName: ${self:custom.domainName}
+        ValidationMethod: DNS
+        DomainValidationOptions:
+          - DomainName: ${self:custom.domainName}
+            HostedZoneId: ${self:custom.rootDomainHostedZoneID}
     WildDomainCertificate:
       Type: AWS::CertificateManager::Certificate
       Properties:
@@ -20,6 +65,76 @@ resources:
         DomainValidationOptions:
           - DomainName: ${self:custom.domainName}
             HostedZoneId: ${self:custom.rootDomainHostedZoneID}
+
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Aliases:
+            - ${self:custom.domainName}
+          Enabled: true
+          HttpVersion: http2
+          DefaultRootObject: 'index.html'
+          IPV6Enabled: true
+          PriceClass: PriceClass_100
+          ViewerCertificate:
+            AcmCertificateArn: !Ref DomainCertificate
+            MinimumProtocolVersion: TLSv1.2_2018
+            SslSupportMethod: sni-only
+          Origins:
+            - Id: webapp
+              DomainName: !GetAtt WebAppBucket.DomainName
+              S3OriginConfig:
+                OriginAccessIdentity:
+                  !Join ['', ['origin-access-identity/cloudfront/', !Ref CloudFrontOriginAccessIdentity]]
+          DefaultCacheBehavior:
+            TargetOriginId: webapp
+            Compress: true
+            DefaultTTL: 86400
+            ForwardedValues:
+              QueryString: true
+            MaxTTL: 31536000
+            ViewerProtocolPolicy: redirect-to-https
+            ResponseHeadersPolicyId: !Ref WebAppResponseHeadersPolicy
+    RootRecordSetGroup:
+      Type: AWS::Route53::RecordSetGroup
+      Properties:
+        HostedZoneId: ${self:custom.rootDomainHostedZoneID}
+        RecordSets:
+          - Name: ${self:custom.domainName}
+            Type: A
+            AliasTarget:
+              DNSName: !GetAtt CloudFrontDistribution.DomainName
+              # Fixed value to target CloudFront Distribution
+              # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-aliastarget-1.html#cfn-route53-aliastarget-hostedzoneid
+              # cSpell: disable-next-line
+              HostedZoneId: Z2FDTNDATAQYW2
+    WebAppResponseHeadersPolicy:
+      Type: AWS::CloudFront::ResponseHeadersPolicy
+      Properties: 
+        ResponseHeadersPolicyConfig: 
+          Name: !Sub ${AWS::StackName}-webapp-security-headers
+          SecurityHeadersConfig: 
+            StrictTransportSecurity: 
+              AccessControlMaxAgeSec: 63072000
+              IncludeSubdomains: true
+              Override: true
+              Preload: true
+            ContentSecurityPolicy: 
+              ContentSecurityPolicy: "default-src 'none'; manifest-src 'self'; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
+              Override: true
+            ContentTypeOptions: 
+              Override: true
+            FrameOptions:
+              FrameOption: DENY
+              Override: true
+            ReferrerPolicy: 
+              ReferrerPolicy: "same-origin"
+              Override: true
+            XSSProtection: 
+              ModeBlock: true
+              Override: true
+              Protection: true
 
     UserPool:
       Type: AWS::Cognito::UserPool

@@ -142,7 +142,7 @@ resources:
         Schema:
           - Name: email
             Required: true
-            Mutable: false
+            Mutable: true
         Policies:
           PasswordPolicy:
             MinimumLength: 8
@@ -162,7 +162,7 @@ resources:
       Type: AWS::Cognito::UserPoolDomain
       Properties:
         UserPoolId: !Ref UserPool
-        Domain: auth.${self:custom.domainName}
+        Domain: authentication.${self:custom.domainName}
         CustomDomainConfig:
           CertificateArn: !Ref WildDomainCertificate
     UserPoolCustomDomainRecordSetGroup:
@@ -170,7 +170,7 @@ resources:
       Properties:
         HostedZoneId: ${self:custom.rootDomainHostedZoneID}
         RecordSets:
-          - Name: auth.${self:custom.domainName}
+          - Name: authentication.${self:custom.domainName}
             Type: A
             AliasTarget:
               DNSName: !GetAtt UserPoolDomain.CloudFrontDistribution
@@ -212,6 +212,7 @@ resources:
           - ${self:custom.loginRedirectURI}
         DefaultRedirectURI: ${self:custom.loginRedirectURI}
         PreventUserExistenceErrors: ENABLED
+        AllowedOAuthFlowsUserPoolClient: true
         AllowedOAuthFlows:
           - code
         AllowedOAuthScopes:

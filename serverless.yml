@@ -12,7 +12,6 @@ custom:
   domainName: simple-idp.click # By Route53 Registrar
   # cSpell: disable-next-line
   rootDomainHostedZoneID: Z05506703IRO74FTLWKH9 # Created by Route53 Registrar
-  loginRedirectURI: https://${self:custom.domainName}
   assets:
     auto: true
     targets:
@@ -27,6 +26,7 @@ custom:
       - Ref: WebAppBucket
 
 resources:
+  Transform: AWS::Serverless-2016-10-31
   Resources:
     WebAppBucket:
       Type: AWS::S3::Bucket
@@ -82,6 +82,10 @@ resources:
             MinimumProtocolVersion: TLSv1.2_2018
             SslSupportMethod: sni-only
           Origins:
+            - DomainName: example.org # Dummy origin is used for Lambda@Edge functions, keep this as-is
+              Id: dummy-origin
+              CustomOriginConfig:
+                OriginProtocolPolicy: match-viewer
             - Id: webapp
               DomainName: !GetAtt WebAppBucket.DomainName
               S3OriginConfig:
@@ -90,12 +94,41 @@ resources:
           DefaultCacheBehavior:
             TargetOriginId: webapp
             Compress: true
-            DefaultTTL: 86400
             ForwardedValues:
               QueryString: true
-            MaxTTL: 31536000
             ViewerProtocolPolicy: redirect-to-https
             ResponseHeadersPolicyId: !Ref WebAppResponseHeadersPolicy
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !GetAtt LambdaEdgeProtection.Outputs.CheckAuthHandler
+          CacheBehaviors:
+            - PathPattern: /parse-auth
+              Compress: true
+              ForwardedValues:
+                QueryString: true
+              LambdaFunctionAssociations:
+                - EventType: viewer-request
+                  LambdaFunctionARN: !GetAtt LambdaEdgeProtection.Outputs.ParseAuthHandler
+              TargetOriginId: dummy-origin
+              ViewerProtocolPolicy: redirect-to-https
+            - PathPattern: /refresh-auth
+              Compress: true
+              ForwardedValues:
+                QueryString: true
+              LambdaFunctionAssociations:
+                - EventType: viewer-request
+                  LambdaFunctionARN: !GetAtt LambdaEdgeProtection.Outputs.RefreshAuthHandler
+              TargetOriginId: dummy-origin
+              ViewerProtocolPolicy: redirect-to-https
+            - PathPattern: /sign-out
+              Compress: true
+              ForwardedValues:
+                QueryString: true
+              LambdaFunctionAssociations:
+                - EventType: viewer-request
+                  LambdaFunctionARN: !GetAtt LambdaEdgeProtection.Outputs.SignOutHandler
+              TargetOriginId: dummy-origin
+              ViewerProtocolPolicy: redirect-to-https
     RootRecordSetGroup:
       Type: AWS::Route53::RecordSetGroup
       Properties:
@@ -121,7 +154,7 @@ resources:
               Override: true
               Preload: true
             ContentSecurityPolicy: 
-              ContentSecurityPolicy: "default-src 'none'; manifest-src 'self'; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
+              ContentSecurityPolicy: "default-src 'none'; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
               Override: true
             ContentTypeOptions: 
               Override: true
@@ -209,8 +242,10 @@ resources:
         UserPoolId: !Ref UserPool
         GenerateSecret: false
         CallbackURLs:
-          - ${self:custom.loginRedirectURI}
-        DefaultRedirectURI: ${self:custom.loginRedirectURI}
+          - https://${self:custom.domainName}/parse-auth
+        LogoutURLs:
+          - https://${self:custom.domainName}/
+        DefaultRedirectURI: https://${self:custom.domainName}/parse-auth
         PreventUserExistenceErrors: ENABLED
         AllowedOAuthFlowsUserPoolClient: true
         AllowedOAuthFlows:
@@ -223,3 +258,26 @@ resources:
           - COGNITO
           - Google
           - Facebook
+
+    # https://github.com/aws-samples/cloudfront-authorization-at-edge
+    LambdaEdgeProtection:
+      Type: AWS::Serverless::Application
+      DependsOn: UserPoolDomain
+      Properties:
+        Location:
+          ApplicationId: arn:aws:serverlessrepo:us-east-1:520945424137:applications/cloudfront-authorization-at-edge
+          SemanticVersion: 2.1.5
+        Parameters:
+          UserPoolArn: !GetAtt UserPool.Arn
+          UserPoolClientId: !Ref UserPoolClient
+          UserPoolAuthDomain: authentication.${self:custom.domainName}
+          CreateCloudFrontDistribution: false
+          RedirectPathSignIn: /parse-auth
+          RedirectPathSignOut: /
+          RedirectPathAuthRefresh: /refresh-auth
+          SignOutUrl: /sign-out
+          OAuthScopes: !Join
+            - ","
+            - - email
+              - phone
+              - openid

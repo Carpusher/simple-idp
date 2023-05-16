@@ -22,7 +22,10 @@
       "google",
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules":{
+      "linebreak-style": 0
+    }
   },
   "browserslist": {
     "production": [

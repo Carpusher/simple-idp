@@ -3,7 +3,9 @@ ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - linebreak
   - popd
   - pushd
+  - webfonts
 ignoreWords: []
 import: []

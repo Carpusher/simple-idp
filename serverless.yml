@@ -96,6 +96,9 @@ resources:
             Compress: true
             ForwardedValues:
               QueryString: true
+            # Prevent cache after signing out
+            DefaultTTL: 0
+            MaxTTL: 0
             ViewerProtocolPolicy: redirect-to-https
             ResponseHeadersPolicyId: !Ref WebAppResponseHeadersPolicy
             LambdaFunctionAssociations:

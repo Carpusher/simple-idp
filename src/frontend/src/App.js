@@ -69,7 +69,7 @@ function App() {
             alert(err.message || JSON.stringify(err));
             return;
           }
-          console.log('call result: ' + res);
+          alert('Reset password successfully!');
         });
       }
       form.reset();
@@ -110,6 +110,7 @@ function App() {
       </Offcanvas>
       <header className="App-header">
         <h1>Simple Dashboard</h1>
+        <h2>Reset password</h2>
         <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
           <Form.Group className="mb-3" controlId="oldPassword">
             <Form.Label>Old password</Form.Label>

@@ -10,3 +10,9 @@ npm run build
 popd
 npm run deploy:dev
 ```
+
+Or deploy frontend only
+
+```bash
+npm run deploy:dev:frontend
+```

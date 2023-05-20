@@ -1,7 +1,7 @@
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import Form from 'react-bootstrap/Form';
@@ -14,42 +14,54 @@ import COGNITO from './constants/cognito';
 
 import './App.css';
 
-const userPool = new CognitoUserPool({
-  UserPoolId: COGNITO.USER_POOL_ID,
-  ClientId: COGNITO.CLIENT_ID,
-  Storage: new CookieStorage({domain: '.simple-idp.click'}),
-});
-
-const cognitoUser = userPool.getCurrentUser();
-if (cognitoUser != null) { // local dev mode will not have session
-  cognitoUser.getSession(function(err, session) {
-    if (err) {
-      alert(err.message || JSON.stringify(err));
-      return;
-    }
-    console.log('session validity: ' + session.isValid());
-  });
-}
-
 /**
  * Main app
  * @return {any} main app
  */
 function App() {
+  const [cognitoUser, setCognitoUser] = useState();
   const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [isExternalIDP, setIsExternalIDP] = useState(false);
   const [validPassword2, setValidPassword2] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
+
+  useEffect(() => {
+    const userPool = new CognitoUserPool({
+      UserPoolId: COGNITO.USER_POOL_ID,
+      ClientId: COGNITO.CLIENT_ID,
+      Storage: new CookieStorage({domain: '.simple-idp.click'}),
+    });
+    const cognitoUser = userPool.getCurrentUser();
+    if (cognitoUser != null) { // local dev mode will not have session
+      cognitoUser.getSession(function(err, session) {
+        if (err) {
+          alert(err.message || JSON.stringify(err));
+          return;
+        }
+        console.log('session validity: ' + session.isValid());
+      });
+      const userName = cognitoUser.getUsername();
+      setIsExternalIDP(userName.startsWith('Google_') ||
+        userName.startsWith('Facebook_')
+      );
+      setCognitoUser(cognitoUser);
+    }
+  }, []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     event.stopPropagation();
     const form = event.currentTarget;
-    if (form[1].value !== form[2].value) {
+    const oldPassword = form[0].value;
+    const newPassword = form[1].value;
+    const newPassword2 = form[2].value;
+
+    if (newPassword !== newPassword2) {
       setValidPassword2(false);
     } else {
       if (cognitoUser != null) { // local dev mode will not have session
-        cognitoUser.changePassword(form[0].value, form[1].value, (err, res) => {
+        cognitoUser.changePassword(oldPassword, newPassword, (err, res) => {
           if (err) {
             alert(err.message || JSON.stringify(err));
             return;
@@ -95,7 +107,7 @@ function App() {
       </Offcanvas>
       <header className="App-header">
         <h1>Simple Dashboard</h1>
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
           <Form.Group className="mb-3" controlId="oldPassword">
             <Form.Label>Old password</Form.Label>
             <Form.Control type="password" placeholder="Old password" required/>

@@ -6,7 +6,7 @@
   "scripts": {
     "package:dev": "sls package --stage dev",
     "deploy:dev": "sls deploy --stage dev",
-    "deploy:dev:frontend": "sls s3deploy --stage dev"
+    "deploy:dev:frontend": "cd src/frontend && npm run build && cd - && sls s3deploy --stage dev"
   },
   "repository": {
     "type": "git",

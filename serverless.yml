@@ -157,7 +157,7 @@ resources:
               Override: true
               Preload: true
             ContentSecurityPolicy: 
-              ContentSecurityPolicy: "default-src 'none'; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
+              ContentSecurityPolicy: "default-src 'none'; connect-src cognito-idp.us-east-1.amazonaws.com; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
               Override: true
             ContentTypeOptions: 
               Override: true
@@ -257,6 +257,7 @@ resources:
           - email
           - phone
           - openid
+          - aws.cognito.signin.user.admin
         SupportedIdentityProviders:
           - COGNITO
           - Google
@@ -284,3 +285,4 @@ resources:
             - - email
               - phone
               - openid
+              - aws.cognito.signin.user.admin

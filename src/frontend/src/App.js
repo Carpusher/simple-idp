@@ -4,8 +4,32 @@ import Navbar from 'react-bootstrap/Navbar';
 import React, {useState} from 'react';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
+import Form from 'react-bootstrap/Form';
+import {
+  CognitoUserPool,
+  CookieStorage,
+} from 'amazon-cognito-identity-js';
+
+import COGNITO from './constants/cognito';
 
 import './App.css';
+
+const userPool = new CognitoUserPool({
+  UserPoolId: COGNITO.USER_POOL_ID,
+  ClientId: COGNITO.CLIENT_ID,
+  Storage: new CookieStorage({domain: '.simple-idp.click'}),
+});
+
+const cognitoUser = userPool.getCurrentUser();
+if (cognitoUser != null) { // local dev mode will not have session
+  cognitoUser.getSession(function(err, session) {
+    if (err) {
+      alert(err.message || JSON.stringify(err));
+      return;
+    }
+    console.log('session validity: ' + session.isValid());
+  });
+}
 
 /**
  * Main app
@@ -13,8 +37,29 @@ import './App.css';
  */
 function App() {
   const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [validPassword2, setValidPassword2] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const form = event.currentTarget;
+    if (form[1].value !== form[2].value) {
+      setValidPassword2(false);
+    } else {
+      if (cognitoUser != null) { // local dev mode will not have session
+        cognitoUser.changePassword(form[0].value, form[1].value, (err, res) => {
+          if (err) {
+            alert(err.message || JSON.stringify(err));
+            return;
+          }
+          console.log('call result: ' + res);
+        });
+      }
+      form.reset();
+    }
+  };
 
   return (
     <div className="App">
@@ -49,6 +94,28 @@ function App() {
         </Offcanvas.Body>
       </Offcanvas>
       <header className="App-header">
+        <h1>Simple Dashboard</h1>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3" controlId="oldPassword">
+            <Form.Label>Old password</Form.Label>
+            <Form.Control type="password" placeholder="Old password" required/>
+          </Form.Group>
+          <Form.Group className="mb-3" controlId="newPassword">
+            <Form.Label>New password</Form.Label>
+            <Form.Control type="password" placeholder="New password" required/>
+          </Form.Group>
+          <Form.Group className="mb-3" controlId="newPassword2">
+            <Form.Label>Re-enter new password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="New password"
+              isInvalid={!validPassword2}
+              onChange={() => setValidPassword2(true)}
+              required
+            />
+          </Form.Group>
+          <Button variant="outline-info" type="submit">Submit</Button>
+        </Form>
       </header>
     </div>
   );

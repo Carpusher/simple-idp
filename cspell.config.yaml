@@ -6,6 +6,7 @@ words:
   - linebreak
   - popd
   - pushd
+  - signin
   - webfonts
 ignoreWords: []
 import: []

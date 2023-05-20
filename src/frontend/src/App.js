@@ -22,6 +22,7 @@ function App() {
   const [cognitoUser, setCognitoUser] = useState();
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [isExternalIDP, setIsExternalIDP] = useState(false);
+  const [validPassword1, setValidPassword1] = useState(true);
   const [validPassword2, setValidPassword2] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
@@ -57,7 +58,9 @@ function App() {
     const newPassword = form[1].value;
     const newPassword2 = form[2].value;
 
-    if (newPassword !== newPassword2) {
+    if (oldPassword === newPassword) {
+      setValidPassword1(false);
+    } else if (newPassword !== newPassword2) {
       setValidPassword2(false);
     } else {
       if (cognitoUser != null) { // local dev mode will not have session
@@ -114,7 +117,12 @@ function App() {
           </Form.Group>
           <Form.Group className="mb-3" controlId="newPassword">
             <Form.Label>New password</Form.Label>
-            <Form.Control type="password" placeholder="New password" required/>
+            <Form.Control
+              type="password"
+              placeholder="New password"
+              isInvalid={!validPassword1}
+              onChange={() => setValidPassword1(true)}
+              required/>
           </Form.Group>
           <Form.Group className="mb-3" controlId="newPassword2">
             <Form.Label>Re-enter new password</Form.Label>

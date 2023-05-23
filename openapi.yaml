@@ -2,6 +2,8 @@ openapi: 3.0.1
 info:
   title: Simple-IDP API
   version: 1.0.0
+servers:
+  - url: https://simple-idp.click
 tags:
   - name: Profile
 paths:
@@ -20,16 +22,40 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  email:
-                    type: string
-                    description: The email of the user.
-                    example: alice@example.com
-                  displayName:
-                    type: string
-                    description: The name of the user.
-                    example: Alice Who
+                $ref: "#/components/schemas/Profile"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+        500:
+          $ref: "#/components/responses/InternalServerError"
+        503:
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      tags:
+        - Profile
+      operationId: updateProfile
+      summary: Update user profile
+      description: Update user profile
+      security:
+        - cognito-id-token: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Profile"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        400:
+          $ref: "#/components/responses/BadRequest"
         401:
           $ref: "#/components/responses/Unauthorized"
         403:
@@ -43,6 +69,21 @@ paths:
 
 components:
   schemas:
+    Profile:
+      type: object
+      properties:
+        email:
+          type: string
+          description: The email of the user.
+          readOnly: true
+          example: alice@example.com
+        displayName:
+          type: string
+          description: The name of the user.
+          example: Alice Who
+      required:
+        - email
+        - displayName
     Error:
       type: object
       properties:

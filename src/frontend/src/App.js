@@ -74,11 +74,35 @@ function App() {
     describeProfile();
   }, [cognitoUser, showOffcanvas]);
 
-  const handleSubmitProfile = (event) => {
+  const handleSubmitProfile = async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const newDisplayName = event.currentTarget[1].value;
-    console.log(newDisplayName);
+    const displayName = event.currentTarget[1].value;
+    if (cognitoUser == null) return;
+    const token = cognitoUser
+        .getSignInUserSession()
+        .getIdToken()
+        .getJwtToken();
+    try {
+      const response = await fetch('https://simple-idp.click/api/profile', {
+        method: 'POST',
+        headers: {
+          // eslint-disable-next-line quote-props
+          Authorization: token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({displayName}),
+      });
+
+      const profile = await response.json();
+      setProfile(profile);
+      setDisplayName(profile.displayName);
+      setHideSaveProfile(true);
+      alert('Update profile successfully!');
+    } catch (err) {
+      console.log('Unable to update user profile', err);
+      alert('Unable to update user profile');
+    }
   };
 
   const handleSubmit = (event) => {

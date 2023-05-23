@@ -40,7 +40,7 @@ const describeProfile = async (event, response) => {
   }
   try {
     const res = await poolClient.query(`
-      SELECT email, displayName FROM users WHERE cognitoUserName = $1
+      SELECT email, displayName FROM users WHERE cognitoUserName = $1::text
     `, [cognitoUserName]);
     console.log(res);
     response.statusCode = 200;
@@ -52,7 +52,48 @@ const describeProfile = async (event, response) => {
   } catch (err) {
     console.log('Unable to describe profile', err);
     response.statusCode = 500;
-    throw err;
+  } finally {
+    poolClient.release();
+  }
+};
+
+const updateProfile = async (event, response) => {
+  console.log(JSON.stringify(event));
+  const poolClient = await pool.connect();
+  console.log('DB connected successfully');
+  const cognitoUserName = event
+      .requestContext
+      ?.authorizer
+      ?.claims
+      ?.['cognito:username'];
+  if (cognitoUserName == null) {
+    response.statusCode = 500;
+    console.log('Unable to locate cognito user name');
+    return;
+  }
+  const {displayName} = JSON.parse(event.body);
+  if (displayName == null) {
+    response.statusCode = 400;
+    response.body = JSON.stringify({
+      message: 'Missing required attribute in body: displayName',
+    });
+    return;
+  }
+  try {
+    const res = await poolClient.query(`
+      UPDATE users SET displayName=$1 WHERE cognitoUserName = $2::text
+      RETURNING *
+    `, [displayName, cognitoUserName]);
+    console.log(res);
+    response.statusCode = 200;
+    const {email, displayname} = res.rows[0];
+    response.body = JSON.stringify({
+      email,
+      displayName: displayname,
+    });
+  } catch (err) {
+    console.log('Unable to update profile', err);
+    response.statusCode = 500;
   } finally {
     poolClient.release();
   }
@@ -63,6 +104,12 @@ const describeProfileHandler = async (event) => (await compose([
   describeProfile,
 ])(event));
 
+const updateProfileHandler = async (event) => (await compose([
+  removeAuthToken,
+  updateProfile,
+])(event));
+
 export {
   describeProfileHandler,
+  updateProfileHandler,
 };

@@ -113,6 +113,33 @@ functions:
             name: CognitoAuthorizer
             type: COGNITO_USER_POOLS
             arn: !GetAtt UserPool.Arn
+  updateProfile:
+    handler: src/backend/services/profile/api.updateProfileHandler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    events:
+      - http:
+          path: /api/profile
+          method: post
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt UserPool.Arn
 
 package:
   patterns:

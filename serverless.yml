@@ -7,6 +7,17 @@ plugins:
 provider:
   name: aws
   runtime: nodejs18.x
+  architecture: arm64
+  memorySize: 512
+  logRetentionInDays: 30
+  iam: # Sharing roles for functions is NOT following least privilege principal
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - 'secretsmanager:GetSecretValue'
+          Resource: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+  endpointType: regional
 
 custom:
   domainName: simple-idp.click # By Route53 Registrar
@@ -24,6 +35,88 @@ custom:
   remover:
     buckets:
       - Ref: WebAppBucket
+
+functions:
+  databaseSchema:
+    handler: src/backend/operations/databaseSchema.handler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    timeout: 30
+  postConfirmation:
+    handler: src/backend/userPoolLambdaTriggers/postConfirmation.handler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    events:
+      - cognitoUserPool:
+          pool: UserPool-OIMcbLxZe9YD # Could have avoid hard coding if letting Serverless Framework to create the pool
+          trigger: PostConfirmation
+          # Could be removed if letting Serverless Framework to create the pool
+          existing: true
+          forceDeploy: true
+    # https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-identity-pools-working-with-aws-lambda-triggers.html#important-lambda-considerations
+    timeout: 5
+
+  describeProfile:
+    handler: src/backend/services/profile/api.describeProfileHandler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    events:
+      - http:
+          path: /api/profile
+          method: get
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt UserPool.Arn
+
+package:
+  patterns:
+    - '!src/frontend/**'
 
 resources:
   Transform: AWS::Serverless-2016-10-31
@@ -91,6 +184,15 @@ resources:
               S3OriginConfig:
                 OriginAccessIdentity:
                   !Join ['', ['origin-access-identity/cloudfront/', !Ref CloudFrontOriginAccessIdentity]]
+            - Id: api-profile
+              DomainName: !Join
+                - '.'
+                - - !Ref ApiGatewayRestApi
+                  - !Sub execute-api.${AWS::Region}.${AWS::URLSuffix}
+              OriginPath: /${opt:stage}
+              CustomOriginConfig:
+                OriginProtocolPolicy: https-only
+                OriginSSLProtocols: ['TLSv1.2']
           DefaultCacheBehavior:
             TargetOriginId: webapp
             Compress: true
@@ -132,6 +234,26 @@ resources:
                   LambdaFunctionARN: !GetAtt LambdaEdgeProtection.Outputs.SignOutHandler
               TargetOriginId: dummy-origin
               ViewerProtocolPolicy: redirect-to-https
+            - PathPattern: /api/profile
+              Compress: true
+              TargetOriginId: api-profile
+              ViewerProtocolPolicy: https-only
+              # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html
+              # CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+              AllowedMethods:
+                - GET
+                - HEAD
+                - OPTIONS
+                - PUT
+                - PATCH
+                - POST
+                - DELETE
+              ForwardedValues:
+                Headers: ['Authorization']
+                QueryString: true
+              DefaultTTL: 0
+              MaxTTL: 0
+              MinTTL: 0
     RootRecordSetGroup:
       Type: AWS::Route53::RecordSetGroup
       Properties:
@@ -157,7 +279,7 @@ resources:
               Override: true
               Preload: true
             ContentSecurityPolicy: 
-              ContentSecurityPolicy: "default-src 'none'; connect-src cognito-idp.us-east-1.amazonaws.com; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
+              ContentSecurityPolicy: "default-src 'none'; connect-src 'self' cognito-idp.us-east-1.amazonaws.com; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
               Override: true
             ContentTypeOptions: 
               Override: true
@@ -226,7 +348,9 @@ resources:
           authorize_scopes: public_profile,email
           # api_version: 2.12
         AttributeMapping:
+          # https://stackoverflow.com/a/15816460
           email: email
+          name: name
     GoogleIdentityProvider:
       Type: AWS::Cognito::UserPoolIdentityProvider
       Properties:
@@ -238,7 +362,9 @@ resources:
           client_secret: ${ssm:simple-idp.google.clientSecret}
           authorize_scopes: profile email openid
         AttributeMapping:
+          # https://developers.google.com/identity/openid-connect/openid-connect#an-id-tokens-payload
           email: email
+          name: name
     UserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -286,3 +412,29 @@ resources:
               - phone
               - openid
               - aws.cognito.signin.user.admin
+
+    # Under default VPC
+    SimpleDatabase:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        Engine: postgres
+        EngineVersion: 14.6
+        DBInstanceClass: db.t3.micro
+        AllocatedStorage: 5
+        ManageMasterUserPassword: true
+        MasterUsername: postgres
+    SecretManagerInterfaceEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        # Default VPC
+        VpcId: vpc-0ccd072e8faccb975
+        SubnetIds:
+          - subnet-08208e3e6e496e6c2
+          - subnet-03e6a4d681a2c7024
+          - subnet-0fc9ff7e364de4fd2
+          - subnet-00c532b92da5da3d9
+          - subnet-042cc6a53e5a9daf4
+          - subnet-049a3b6888500a00a

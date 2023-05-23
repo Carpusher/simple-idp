@@ -1,0 +1,94 @@
+openapi: 3.0.1
+info:
+  title: Simple-IDP API
+  version: 1.0.0
+tags:
+  - name: Profile
+paths:
+  /api/profile:
+    get:
+      tags:
+        - Profile
+      operationId: describeProfile
+      summary: Describe user profile
+      description: Describe user profile
+      security:
+        - cognito-id-token: []
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    description: The email of the user.
+                    example: alice@example.com
+                  displayName:
+                    type: string
+                    description: The name of the user.
+                    example: Alice Who
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+        500:
+          $ref: "#/components/responses/InternalServerError"
+        503:
+          $ref: "#/components/responses/ServiceUnavailable"
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message (optional)
+          example: Error message.
+  securitySchemes:
+    cognito-id-token:
+      type: apiKey
+      name: Authorization
+      in: header
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: TooManyRequests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalServerError:
+      description: InternalServerError
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: ServiceUnavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

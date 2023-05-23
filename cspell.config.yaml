@@ -4,6 +4,9 @@ dictionaryDefinitions: []
 dictionaries: []
 words:
   - linebreak
+  - middlewares
+  - OIDS
+  - openapi
   - popd
   - pushd
   - signin

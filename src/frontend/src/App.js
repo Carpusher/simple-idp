@@ -5,6 +5,8 @@ import React, {useState, useEffect} from 'react';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import Form from 'react-bootstrap/Form';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
 import {
   CognitoUserPool,
   CookieStorage,
@@ -20,10 +22,13 @@ import './App.css';
  */
 function App() {
   const [cognitoUser, setCognitoUser] = useState();
-  const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [isExternalIDP, setIsExternalIDP] = useState(false);
   const [validPassword1, setValidPassword1] = useState(true);
   const [validPassword2, setValidPassword2] = useState(true);
+  const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [profile, setProfile] = useState({});
+  const [displayName, setDisplayName] = useState('');
+  const [hideSaveProfile, setHideSaveProfile] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
 
@@ -50,6 +55,32 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (cognitoUser == null) return;
+    const token = cognitoUser
+        .getSignInUserSession()
+        .getIdToken()
+        .getJwtToken();
+    const describeProfile = async () => {
+      const response = await fetch('https://simple-idp.click/api/profile', {
+        headers: {
+          Authorization: token,
+        },
+      });
+      const profile = await response.json();
+      setProfile(profile);
+      setDisplayName(profile.displayName);
+    };
+    describeProfile();
+  }, [cognitoUser, showOffcanvas]);
+
+  const handleSubmitProfile = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const newDisplayName = event.currentTarget[1].value;
+    console.log(newDisplayName);
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -64,7 +95,7 @@ function App() {
       setValidPassword2(false);
     } else {
       if (cognitoUser != null) { // local dev mode will not have session
-        cognitoUser.changePassword(oldPassword, newPassword, (err, res) => {
+        cognitoUser.changePassword(oldPassword, newPassword, (err) => {
           if (err) {
             alert(err.message || JSON.stringify(err));
             return;
@@ -105,13 +136,48 @@ function App() {
           <Offcanvas.Title>User Profile</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          <Button variant="outline-warning" href="sign-out">Sign out</Button>
+          <Form onSubmit={handleSubmitProfile}>
+            <Row>
+              <Form.Group className="mb-3" controlId="email">
+                <Form.Label>Email</Form.Label>
+                <Form.Control placeholder={profile.email} disabled/>
+              </Form.Group>
+            </Row>
+            <Row>
+              <Form.Group className="mb-3" controlId="displayName">
+                <Form.Label>Name</Form.Label>
+                <Form.Control
+                  placeholder="Name"
+                  value={displayName}
+                  onChange={(e) => {
+                    setDisplayName(e.target.value);
+                    setHideSaveProfile(e.target.value === profile.displayName);
+                  }}/>
+              </Form.Group>
+            </Row>
+            <Row>
+              <Col>
+                <Button
+                  variant="outline-info"
+                  type="submit"
+                  hidden={hideSaveProfile}
+                >
+                  Save
+                </Button>
+              </Col>
+              <Col style={{textAlign: 'end'}}>
+                <Button variant="outline-warning" href="sign-out">
+                  Sign out
+                </Button>
+              </Col>
+            </Row>
+          </Form>
         </Offcanvas.Body>
       </Offcanvas>
       <header className="App-header">
         <h1>Simple Dashboard</h1>
-        <h2>Reset password</h2>
         <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
+          <h2>Reset password</h2>
           <Form.Group className="mb-3" controlId="oldPassword">
             <Form.Label>Old password</Form.Label>
             <Form.Control type="password" placeholder="Old password" required/>

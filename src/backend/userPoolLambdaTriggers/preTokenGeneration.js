@@ -19,34 +19,18 @@ const pool = new Pool({
 
 const handler = async (event) => {
   console.log(event);
-  const {triggerSource, request: {userAttributes}, userName} = event;
-  const isExternalIDP =
-    userAttributes['cognito:user_status'] === 'EXTERNAL_PROVIDER';
-  if (triggerSource === 'PostConfirmation_ConfirmSignUp') {
-    const displayName = isExternalIDP ?
-      userAttributes.name :
-      userAttributes.email.split('@')[0];
-    console.log(`Display name: ${displayName}`);
-
+  const {triggerSource, userName} = event;
+  if (triggerSource === 'TokenGeneration_HostedAuth' ||
+    triggerSource === 'TokenGeneration_Authentication' ||
+    triggerSource === 'TokenGeneration_RefreshTokens') {
     const poolClient = await pool.connect();
     console.log('DB connected successfully');
     try {
       const res = await poolClient.query(`
-        INSERT INTO users(
-          cognitoUserName,
-          email,
-          created,
-          displayname,
-          loginCount
-        ) VALUES($1, $2, $3, $4, $5)
+        UPDATE users SET lastSession = $1
+        WHERE cognitoUserName = $2
         RETURNING *
-      `, [
-        userName,
-        userAttributes.email,
-        new Date(),
-        displayName,
-        isExternalIDP ? 1 : 0, // external IDP doesn't trigger postAuthentication
-      ]);
+      `, [new Date(), userName]);
       console.log(res);
     } catch (err) {
       console.log('Unable to insert user info', err);

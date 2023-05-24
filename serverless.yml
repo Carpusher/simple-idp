@@ -37,6 +37,7 @@ custom:
       - Ref: WebAppBucket
 
 functions:
+  # Operations
   databaseSchema:
     handler: src/backend/operations/databaseSchema.handler
     vpc: # Default VPC
@@ -57,6 +58,8 @@ functions:
       PGDATABASE: postgres
       # cSpell: enable
     timeout: 30
+
+  # Cognito Lambda Triggers
   postConfirmation:
     handler: src/backend/userPoolLambdaTriggers/postConfirmation.handler
     vpc: # Default VPC
@@ -85,7 +88,64 @@ functions:
           forceDeploy: true
     # https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-identity-pools-working-with-aws-lambda-triggers.html#important-lambda-considerations
     timeout: 5
+  postAuthentication:
+    handler: src/backend/userPoolLambdaTriggers/postAuthentication.handler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    events:
+      - cognitoUserPool:
+          pool: UserPool-OIMcbLxZe9YD # Could have avoid hard coding if letting Serverless Framework to create the pool
+          trigger: PostAuthentication
+          # Could be removed if letting Serverless Framework to create the pool
+          existing: true
+          forceDeploy: true
+    # https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-identity-pools-working-with-aws-lambda-triggers.html#important-lambda-considerations
+    timeout: 5
+  preTokenGeneration:
+    handler: src/backend/userPoolLambdaTriggers/preTokenGeneration.handler
+    vpc: # Default VPC
+      securityGroupIds:
+        - sg-0588cc3387ee29541
+      subnetIds:
+        - subnet-08208e3e6e496e6c2
+        - subnet-03e6a4d681a2c7024
+        - subnet-0fc9ff7e364de4fd2
+        - subnet-00c532b92da5da3d9
+        - subnet-042cc6a53e5a9daf4
+        - subnet-049a3b6888500a00a
+    environment:
+      PG_SECRET_ARN: !GetAtt SimpleDatabase.MasterUserSecret.SecretArn
+      # cSpell: disable
+      PGHOST: !GetAtt SimpleDatabase.Endpoint.Address
+      PGPORT: !GetAtt SimpleDatabase.Endpoint.Port
+      PGDATABASE: postgres
+      # cSpell: enable
+    events:
+      - cognitoUserPool:
+          pool: UserPool-OIMcbLxZe9YD # Could have avoid hard coding if letting Serverless Framework to create the pool
+          trigger: PreTokenGeneration
+          # Could be removed if letting Serverless Framework to create the pool
+          existing: true
+          forceDeploy: true
+    # https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-identity-pools-working-with-aws-lambda-triggers.html#important-lambda-considerations
+    timeout: 5
 
+  # APIs
   describeProfile:
     handler: src/backend/services/profile/api.describeProfileHandler
     vpc: # Default VPC

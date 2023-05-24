@@ -6,6 +6,7 @@ servers:
   - url: https://simple-idp.click
 tags:
   - name: Profile
+  - name: Users
 paths:
   /api/profile:
     get:
@@ -67,6 +68,39 @@ paths:
         503:
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /api/users:
+    get:
+      tags:
+        - Users
+      operationId: listUsers
+      summary: List users
+      description: List users
+      security:
+        - cognito-id-token: []
+      # TODO: Support pagination
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+        500:
+          $ref: "#/components/responses/InternalServerError"
+        503:
+          $ref: "#/components/responses/ServiceUnavailable"
+
 components:
   schemas:
     Profile:
@@ -84,6 +118,41 @@ components:
       required:
         - email
         - displayName
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the user.
+          readOnly: true
+        email:
+          type: string
+          description: The email of the user.
+          readOnly: true
+          example: alice@example.com
+        displayName:
+          type: string
+          description: The name of the user.
+          example: Alice Who
+        created:
+          type: string
+          format: datetime
+          description: Time when the user is created in simplified extended ISO format (ISO 8601).
+          readOnly: true
+          example: 2023-01-01T00:00:00.000Z
+        loginCount:
+          type: integer
+          description: Number of login times of the user.
+          readOnly: true
+          example: 1
+        lastSession:
+          type: string
+          format: datetime
+          description: Time when the user is created in simplified extended ISO format (ISO 8601).
+          readOnly: true
+          example: 2023-01-01T00:00:00.000Z
+      required:
+        - id
     Error:
       type: object
       properties:

@@ -1,18 +1,15 @@
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import React, {useState, useEffect} from 'react';
+import {useState, useEffect} from 'react';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
-import {
-  CognitoUserPool,
-  CookieStorage,
-} from 'amazon-cognito-identity-js';
 
-import COGNITO from './constants/cognito';
+import UserDatabaseDashboard from './components/UserDatabaseDashboard';
+import {useLocationHash, useCognitoUser} from './hooks';
 
 import './App.css';
 
@@ -21,7 +18,8 @@ import './App.css';
  * @return {any} main app
  */
 function App() {
-  const [cognitoUser, setCognitoUser] = useState();
+  const locationHash = useLocationHash();
+  const cognitoUser = useCognitoUser();
   const [isExternalIDP, setIsExternalIDP] = useState(false);
   const [validPassword1, setValidPassword1] = useState(true);
   const [validPassword2, setValidPassword2] = useState(true);
@@ -33,30 +31,16 @@ function App() {
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
 
   useEffect(() => {
-    const userPool = new CognitoUserPool({
-      UserPoolId: COGNITO.USER_POOL_ID,
-      ClientId: COGNITO.CLIENT_ID,
-      Storage: new CookieStorage({domain: '.simple-idp.click'}),
-    });
-    const cognitoUser = userPool.getCurrentUser();
     if (cognitoUser != null) { // local dev mode will not have session
-      cognitoUser.getSession(function(err, session) {
-        if (err) {
-          alert(err.message || JSON.stringify(err));
-          return;
-        }
-        console.log('session validity: ' + session.isValid());
-      });
       const userName = cognitoUser.getUsername();
       setIsExternalIDP(userName.startsWith('Google_') ||
         userName.startsWith('Facebook_')
       );
-      setCognitoUser(cognitoUser);
     }
-  }, []);
+  }, [cognitoUser]);
 
   useEffect(() => {
-    if (cognitoUser == null) return;
+    if (cognitoUser == null) return; // local dev mode will not have session
     const token = cognitoUser
         .getSignInUserSession()
         .getIdToken()
@@ -78,7 +62,7 @@ function App() {
     event.preventDefault();
     event.stopPropagation();
     const displayName = event.currentTarget[1].value;
-    if (cognitoUser == null) return;
+    if (cognitoUser == null) return; // local dev mode will not have session
     const token = cognitoUser
         .getSignInUserSession()
         .getIdToken()
@@ -133,7 +117,7 @@ function App() {
 
   return (
     <div className="App">
-      <Navbar collapseOnSelect expand="lg" bg="light" variant="light">
+      <Navbar expand="lg" bg="light" variant="light">
         <Container>
           <Navbar.Brand href="#simple-dashboard">Simple-IDP</Navbar.Brand>
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
@@ -199,34 +183,45 @@ function App() {
         </Offcanvas.Body>
       </Offcanvas>
       <header className="App-header">
-        <h1>Simple Dashboard</h1>
-        <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
-          <h2>Reset password</h2>
-          <Form.Group className="mb-3" controlId="oldPassword">
-            <Form.Label>Old password</Form.Label>
-            <Form.Control type="password" placeholder="Old password" required/>
-          </Form.Group>
-          <Form.Group className="mb-3" controlId="newPassword">
-            <Form.Label>New password</Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="New password"
-              isInvalid={!validPassword1}
-              onChange={() => setValidPassword1(true)}
-              required/>
-          </Form.Group>
-          <Form.Group className="mb-3" controlId="newPassword2">
-            <Form.Label>Re-enter new password</Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="New password"
-              isInvalid={!validPassword2}
-              onChange={() => setValidPassword2(true)}
-              required
-            />
-          </Form.Group>
-          <Button variant="outline-info" type="submit">Submit</Button>
-        </Form>
+        {
+          locationHash === '#simple-dashboard' || locationHash === '' ?
+          <div>
+            <h1>Simple Dashboard</h1>
+            <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
+              <h2>Reset password</h2>
+              <Form.Group className="mb-3" controlId="oldPassword">
+                <Form.Label>Old password</Form.Label>
+                <Form.Control
+                  type="password"
+                  placeholder="Old password"
+                  required
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="newPassword">
+                <Form.Label>New password</Form.Label>
+                <Form.Control
+                  type="password"
+                  placeholder="New password"
+                  isInvalid={!validPassword1}
+                  onChange={() => setValidPassword1(true)}
+                  required/>
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="newPassword2">
+                <Form.Label>Re-enter new password</Form.Label>
+                <Form.Control
+                  type="password"
+                  placeholder="New password"
+                  isInvalid={!validPassword2}
+                  onChange={() => setValidPassword2(true)}
+                  required
+                />
+              </Form.Group>
+              <Button variant="outline-info" type="submit">Submit</Button>
+            </Form>
+          </div> : locationHash === '#user-db-dashboard' ?
+          <UserDatabaseDashboard /> :
+          null
+        }
       </header>
     </div>
   );

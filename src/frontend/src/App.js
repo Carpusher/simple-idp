@@ -8,6 +8,7 @@ import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 
+import SimpleDashboard from './components/SimpleDashboard';
 import UserDatabaseDashboard from './components/UserDatabaseDashboard';
 import {useLocationHash, useCognitoUser} from './hooks';
 
@@ -20,24 +21,12 @@ import './App.css';
 function App() {
   const locationHash = useLocationHash();
   const cognitoUser = useCognitoUser();
-  const [isExternalIDP, setIsExternalIDP] = useState(false);
-  const [validPassword1, setValidPassword1] = useState(true);
-  const [validPassword2, setValidPassword2] = useState(true);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [profile, setProfile] = useState({});
   const [displayName, setDisplayName] = useState('');
   const [hideSaveProfile, setHideSaveProfile] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
-
-  useEffect(() => {
-    if (cognitoUser != null) { // local dev mode will not have session
-      const userName = cognitoUser.getUsername();
-      setIsExternalIDP(userName.startsWith('Google_') ||
-        userName.startsWith('Facebook_')
-      );
-    }
-  }, [cognitoUser]);
 
   useEffect(() => {
     if (cognitoUser == null) return; // local dev mode will not have session
@@ -86,32 +75,6 @@ function App() {
     } catch (err) {
       console.log('Unable to update user profile', err);
       alert('Unable to update user profile');
-    }
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const form = event.currentTarget;
-    const oldPassword = form[0].value;
-    const newPassword = form[1].value;
-    const newPassword2 = form[2].value;
-
-    if (oldPassword === newPassword) {
-      setValidPassword1(false);
-    } else if (newPassword !== newPassword2) {
-      setValidPassword2(false);
-    } else {
-      if (cognitoUser != null) { // local dev mode will not have session
-        cognitoUser.changePassword(oldPassword, newPassword, (err) => {
-          if (err) {
-            alert(err.message || JSON.stringify(err));
-            return;
-          }
-          alert('Reset password successfully!');
-        });
-      }
-      form.reset();
     }
   };
 
@@ -185,40 +148,7 @@ function App() {
       <header className="App-header">
         {
           locationHash === '#simple-dashboard' || locationHash === '' ?
-          <div>
-            <h1>Simple Dashboard</h1>
-            <Form onSubmit={handleSubmit} hidden={isExternalIDP}>
-              <h2>Reset password</h2>
-              <Form.Group className="mb-3" controlId="oldPassword">
-                <Form.Label>Old password</Form.Label>
-                <Form.Control
-                  type="password"
-                  placeholder="Old password"
-                  required
-                />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="newPassword">
-                <Form.Label>New password</Form.Label>
-                <Form.Control
-                  type="password"
-                  placeholder="New password"
-                  isInvalid={!validPassword1}
-                  onChange={() => setValidPassword1(true)}
-                  required/>
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="newPassword2">
-                <Form.Label>Re-enter new password</Form.Label>
-                <Form.Control
-                  type="password"
-                  placeholder="New password"
-                  isInvalid={!validPassword2}
-                  onChange={() => setValidPassword2(true)}
-                  required
-                />
-              </Form.Group>
-              <Button variant="outline-info" type="submit">Submit</Button>
-            </Form>
-          </div> : locationHash === '#user-db-dashboard' ?
+          <SimpleDashboard /> : locationHash === '#user-db-dashboard' ?
           <UserDatabaseDashboard /> :
           null
         }

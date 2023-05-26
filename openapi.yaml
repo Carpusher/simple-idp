@@ -7,6 +7,7 @@ servers:
 tags:
   - name: Profile
   - name: Users
+  - name: Statistics
 paths:
   /api/profile:
     get:
@@ -101,6 +102,39 @@ paths:
         503:
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /api/statistics:
+    get:
+      tags:
+        - Statistics
+      operationId: listStatistics
+      summary: List statistics
+      description: List statistics
+      security:
+        - cognito-id-token: []
+      # TODO: Support pagination
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statistics:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Statistic"
+        401:
+          $ref: "#/components/responses/Unauthorized"
+        403:
+          $ref: "#/components/responses/Forbidden"
+        429:
+          $ref: "#/components/responses/TooManyRequests"
+        500:
+          $ref: "#/components/responses/InternalServerError"
+        503:
+          $ref: "#/components/responses/ServiceUnavailable"
+
 components:
   schemas:
     Profile:
@@ -153,6 +187,22 @@ components:
           example: 2023-01-01T00:00:00.000Z
       required:
         - id
+    Statistic:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Unique name of the statistic.
+          readOnly: true
+          example: total-sign-ups
+        value:
+          type: number
+          description: The value of the statistics.
+          readOnly: true
+          example: 100
+      required:
+        - name
+        - value
     Error:
       type: object
       properties:

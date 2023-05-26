@@ -50,7 +50,7 @@ const listStatistics = async (event, response) => {
         },
         {
           // Average number of active session users in the last 7 days rolling
-          name: 'dau-7d-rolling',
+          name: '7d-active-user-rolling',
           value: (lastSessions.filter((time) => {
             const lastSession = new Date(time);
             return lastSession.getTime() >= today.getTime() - 7 * 24 * 60 * 60 * 1000;

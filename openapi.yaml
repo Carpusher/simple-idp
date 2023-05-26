@@ -2,6 +2,10 @@ openapi: 3.0.1
 info:
   title: Simple-IDP API
   version: 1.0.0
+  description: |
+    Simple-IDP business logic APIs.
+    For login related APIs please refernece Cognito User pool endpoints reference:
+    https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-reference.html
 servers:
   - url: https://simple-idp.click
 tags:

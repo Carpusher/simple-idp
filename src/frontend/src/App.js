@@ -1,16 +1,14 @@
+import {useState} from 'react';
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import {useState, useEffect} from 'react';
 import Button from 'react-bootstrap/Button';
 import Offcanvas from 'react-bootstrap/Offcanvas';
-import Form from 'react-bootstrap/Form';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
 
+import UserProfile from './components/UserProfile';
 import SimpleDashboard from './components/SimpleDashboard';
 import UserDatabaseDashboard from './components/UserDatabaseDashboard';
-import {useLocationHash, useCognitoUser} from './hooks';
+import {useLocationHash} from './hooks';
 
 import './App.css';
 
@@ -20,63 +18,9 @@ import './App.css';
  */
 function App() {
   const locationHash = useLocationHash();
-  const cognitoUser = useCognitoUser();
   const [showOffcanvas, setShowOffcanvas] = useState(false);
-  const [profile, setProfile] = useState({});
-  const [displayName, setDisplayName] = useState('');
-  const [hideSaveProfile, setHideSaveProfile] = useState(true);
   const handleShowOffcanvas = () => setShowOffcanvas(true);
   const handleCloseOffcanvas = () => setShowOffcanvas(false);
-
-  useEffect(() => {
-    if (cognitoUser == null) return; // local dev mode will not have session
-    const token = cognitoUser
-        .getSignInUserSession()
-        .getIdToken()
-        .getJwtToken();
-    const describeProfile = async () => {
-      const response = await fetch('https://simple-idp.click/api/profile', {
-        headers: {
-          Authorization: token,
-        },
-      });
-      const profile = await response.json();
-      setProfile(profile);
-      setDisplayName(profile.displayName);
-    };
-    describeProfile();
-  }, [cognitoUser, showOffcanvas]);
-
-  const handleSubmitProfile = async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const displayName = event.currentTarget[1].value;
-    if (cognitoUser == null) return; // local dev mode will not have session
-    const token = cognitoUser
-        .getSignInUserSession()
-        .getIdToken()
-        .getJwtToken();
-    try {
-      const response = await fetch('https://simple-idp.click/api/profile', {
-        method: 'POST',
-        headers: {
-          // eslint-disable-next-line quote-props
-          Authorization: token,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({displayName}),
-      });
-
-      const profile = await response.json();
-      setProfile(profile);
-      setDisplayName(profile.displayName);
-      setHideSaveProfile(true);
-      alert('Update profile successfully!');
-    } catch (err) {
-      console.log('Unable to update user profile', err);
-      alert('Unable to update user profile');
-    }
-  };
 
   return (
     <div className="App">
@@ -107,42 +51,7 @@ function App() {
           <Offcanvas.Title>User Profile</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          <Form onSubmit={handleSubmitProfile}>
-            <Row>
-              <Form.Group className="mb-3" controlId="email">
-                <Form.Label>Email</Form.Label>
-                <Form.Control placeholder={profile.email} disabled/>
-              </Form.Group>
-            </Row>
-            <Row>
-              <Form.Group className="mb-3" controlId="displayName">
-                <Form.Label>Name</Form.Label>
-                <Form.Control
-                  placeholder="Name"
-                  value={displayName}
-                  onChange={(e) => {
-                    setDisplayName(e.target.value);
-                    setHideSaveProfile(e.target.value === profile.displayName);
-                  }}/>
-              </Form.Group>
-            </Row>
-            <Row>
-              <Col>
-                <Button
-                  variant="outline-info"
-                  type="submit"
-                  hidden={hideSaveProfile}
-                >
-                  Save
-                </Button>
-              </Col>
-              <Col style={{textAlign: 'end'}}>
-                <Button variant="outline-warning" href="sign-out">
-                  Sign out
-                </Button>
-              </Col>
-            </Row>
-          </Form>
+          <UserProfile />
         </Offcanvas.Body>
       </Offcanvas>
       <header className="App-header">

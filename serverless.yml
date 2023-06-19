@@ -2,7 +2,7 @@ service: simple-idp
 
 plugins:
   - serverless-s3-deploy
-  - serverless-s3-remover
+  - '@serverless-aws/serverless-s3-remover'
 
 provider:
   name: aws
@@ -410,27 +410,27 @@ resources:
               HostedZoneId: Z2FDTNDATAQYW2
     WebAppResponseHeadersPolicy:
       Type: AWS::CloudFront::ResponseHeadersPolicy
-      Properties: 
-        ResponseHeadersPolicyConfig: 
+      Properties:
+        ResponseHeadersPolicyConfig:
           Name: !Sub ${AWS::StackName}-webapp-security-headers
-          SecurityHeadersConfig: 
-            StrictTransportSecurity: 
+          SecurityHeadersConfig:
+            StrictTransportSecurity:
               AccessControlMaxAgeSec: 63072000
               IncludeSubdomains: true
               Override: true
               Preload: true
-            ContentSecurityPolicy: 
+            ContentSecurityPolicy:
               ContentSecurityPolicy: "default-src 'none'; connect-src 'self' cognito-idp.us-east-1.amazonaws.com; manifest-src 'self' *.${self:custom.domainName}; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
               Override: true
-            ContentTypeOptions: 
+            ContentTypeOptions:
               Override: true
             FrameOptions:
               FrameOption: DENY
               Override: true
-            ReferrerPolicy: 
+            ReferrerPolicy:
               ReferrerPolicy: "same-origin"
               Override: true
-            XSSProtection: 
+            XSSProtection:
               ModeBlock: true
               Override: true
               Protection: true
